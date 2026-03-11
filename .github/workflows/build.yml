@@ -25,25 +25,28 @@ jobs:
     - name: Install system dependencies
       run: sudo apt-get update && sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev openjdk-17-jdk gradle
     
-    - name: Download and setup Android SDK command line tools
+    - name: Download and setup Android SDK (legacy structure)
       run: |
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip -d $ANDROID_HOME/cmdline-tools
-        mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-        rm commandlinetools-linux-11076708_latest.zip
+        # Создаем структуру, которую ожидает buildozer
+        mkdir -p $ANDROID_HOME/tools/bin
+        
+        # Скачиваем старую версию SDK tools (совместимую с buildozer)
+        wget -q https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+        unzip -q sdk-tools-linux-4333796.zip -d $ANDROID_HOME/
+        rm sdk-tools-linux-4333796.zip
+        
+        # Проверяем что установилось
+        ls -la $ANDROID_HOME/tools/bin/
     
     - name: Accept Android licenses
       run: |
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
     
     - name: Install required Android SDK components
       run: |
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
-        yes | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
-        yes | sdkmanager --sdk_root=$ANDROID_HOME "build-tools;33.0.2"
+        yes | $ANDROID_HOME/tools/bin/sdkmanager "platform-tools"
+        yes | $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-33"
+        yes | $ANDROID_HOME/tools/bin/sdkmanager "build-tools;30.0.3"
     
     - name: Upgrade pip
       run: pip install --upgrade pip
@@ -85,9 +88,7 @@ jobs:
         touch assets/icon.png
     
     - name: Build APK
-      run: |
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        buildozer android debug
+      run: buildozer android debug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
