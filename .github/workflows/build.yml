@@ -33,30 +33,42 @@ jobs:
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         rm commandlinetools-linux-9477386_latest.zip
     
+    - name: Create compatibility links for buildozer
+      run: |
+        # Создаем структуру папок, которую ожидает buildozer
+        mkdir -p $ANDROID_HOME/tools/bin
+        # Создаем символические ссылки
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager $ANDROID_HOME/tools/bin/avdmanager
+        # Также создаем ссылку в старый путь tools/
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/bin $ANDROID_HOME/tools/
+        echo "✅ Compatibility links created"
+    
     - name: Verify SDK installation
       run: |
-        echo "=== Contents of ANDROID_HOME ==="
+        echo "=== ANDROID_HOME content ==="
         ls -la $ANDROID_HOME
         echo ""
-        echo "=== Contents of cmdline-tools ==="
-        ls -la $ANDROID_HOME/cmdline-tools/
+        echo "=== tools/bin content ==="
+        ls -la $ANDROID_HOME/tools/bin/ || echo "tools/bin not found"
         echo ""
-        echo "=== Contents of latest/bin ==="
-        ls -la $ANDROID_HOME/cmdline-tools/latest/bin/
+        echo "=== Which sdkmanager ==="
+        which sdkmanager || echo "sdkmanager not in PATH"
     
     - name: Accept Android licenses
       run: |
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         mkdir -p "$ANDROID_HOME/licenses"
         echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
         echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license"
         echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license"
         echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
         echo "504667f4c0de7af1a06de9f4b1727b84351f2910" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
+        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
     
     - name: Install Android SDK components
       run: |
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
         yes | sdkmanager --sdk_root=$ANDROID_HOME "build-tools;30.0.3"
         yes | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
         yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
@@ -94,6 +106,10 @@ jobs:
         echo "android.accept_sdk_license = True" >> buildozer.spec
         echo "android.permissions = INTERNET,ACCESS_NETWORK_STATE" >> buildozer.spec
         echo "android.debug = True" >> buildozer.spec
+        # Добавляем явные пути
+        echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
+        echo "android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b" >> buildozer.spec
+        echo "android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4" >> buildozer.spec
     
     - name: Create assets folder
       run: mkdir -p assets
@@ -105,7 +121,9 @@ jobs:
       run: touch assets/icon.png
     
     - name: Build APK
-      run: buildozer android debug
+      run: |
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+        buildozer android debug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
