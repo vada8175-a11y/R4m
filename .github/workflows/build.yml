@@ -1,4 +1,3 @@
-
 name: Build APK
 
 on:
@@ -35,12 +34,25 @@ jobs:
         echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
         echo "504667f4c0de7af1a06de9f4b1727b84351f2910" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
     
+    - name: Find sdkmanager
+      run: |
+        find $ANDROID_HOME -name "sdkmanager" -type f 2>/dev/null || echo "sdkmanager not found"
+        ls -la $ANDROID_HOME/cmdline-tools/ || echo "cmdline-tools not found"
+    
     - name: Install Android SDK components
       run: |
-        # Устанавливаем build-tools
-        echo y | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "build-tools;30.0.3"
-        echo y | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
-        echo y | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
+        SDKMANAGER=$(find $ANDROID_HOME -name "sdkmanager" -type f 2>/dev/null | head -1)
+        if [ -z "$SDKMANAGER" ]; then
+          echo "sdkmanager not found, downloading..."
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+        fi
+        echo "Using sdkmanager at: $SDKMANAGER"
+        echo y | $SDKMANAGER --sdk_root=$ANDROID_HOME "build-tools;30.0.3"
+        echo y | $SDKMANAGER --sdk_root=$ANDROID_HOME "platforms;android-33"
+        echo y | $SDKMANAGER --sdk_root=$ANDROID_HOME "platform-tools"
     
     - name: Upgrade pip
       run: pip install --upgrade pip
