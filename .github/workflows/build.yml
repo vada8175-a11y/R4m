@@ -33,6 +33,17 @@ jobs:
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         rm commandlinetools-linux-9477386_latest.zip
     
+    - name: Verify SDK installation
+      run: |
+        echo "=== Contents of ANDROID_HOME ==="
+        ls -la $ANDROID_HOME
+        echo ""
+        echo "=== Contents of cmdline-tools ==="
+        ls -la $ANDROID_HOME/cmdline-tools/
+        echo ""
+        echo "=== Contents of latest/bin ==="
+        ls -la $ANDROID_HOME/cmdline-tools/latest/bin/
+    
     - name: Accept Android licenses
       run: |
         mkdir -p "$ANDROID_HOME/licenses"
@@ -45,9 +56,10 @@ jobs:
     - name: Install Android SDK components
       run: |
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        echo y | sdkmanager --sdk_root=$ANDROID_HOME "build-tools;30.0.3"
-        echo y | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
-        echo y | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
+        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        yes | sdkmanager --sdk_root=$ANDROID_HOME "build-tools;30.0.3"
+        yes | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
+        yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
     
     - name: Upgrade pip
       run: pip install --upgrade pip
