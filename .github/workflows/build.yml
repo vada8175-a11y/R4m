@@ -5,9 +5,6 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,112 +18,40 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev gradle
+        sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev openjdk-17-jdk gradle
+        pip install --upgrade pip
+        pip install Cython buildozer
     
-    - name: Cache Android SDK
-      id: cache-android-sdk
-      uses: actions/cache@v4
-      with:
-        path: /home/runner/.buildozer/android/platform
-        key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-android-sdk-
-    
-    - name: Setup Android SDK (if not cached)
-      if: steps.cache-android-sdk.outputs.cache-hit != 'true'
+    - name: Create minimal buildozer.spec
       run: |
-        # Создаем структуру для SDK
-        mkdir -p /home/runner/.buildozer/android/platform/android-sdk
-        
-        # Скачиваем готовый SDK с platform-tools (чтобы избежать Java проблем)
-        cd /home/runner/.buildozer/android/platform
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
-        mkdir -p android-sdk/cmdline-tools
-        mv cmdline-tools android-sdk/cmdline-tools/latest
-        rm commandlinetools-linux-11076708_latest.zip
-        
-        # Скачиваем готовые platform-tools
-        cd android-sdk
-        wget -q https://dl.google.com/android/repository/platform-tools-latest-linux.zip
-        unzip -q platform-tools-latest-linux.zip
-        rm platform-tools-latest-linux.zip
-        
-        # Скачиваем готовые build-tools
-        mkdir -p build-tools
-        cd build-tools
-        wget -q https://dl.google.com/android/repository/build-tools_r30.0.3-linux.zip
-        unzip -q build-tools_r30.0.3-linux.zip -d 30.0.3
-        rm build-tools_r30.0.3-linux.zip
-        
-        # Скачиваем platform
-        cd /home/runner/.buildozer/android/platform/android-sdk
-        mkdir -p platforms
-        cd platforms
-        wget -q https://dl.google.com/android/repository/platform-33_r03.zip
-        unzip -q platform-33_r03.zip -d android-33
-        rm platform-33_r03.zip
-        
-        # Скачиваем NDK
-        cd /home/runner/.buildozer/android/platform
-        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-        unzip -q android-ndk-r25b-linux.zip
-        rm android-ndk-r25b-linux.zip
-        
-        echo "Android SDK setup complete"
+        cat > buildozer.spec << 'EOF'
+[app]
+title = R4Mesg
+package.name = r4mesg
+package.domain = com.r4mesg.app
+source.dir = .
+source.include_exts = py,png,jpg,kv,txt
+version = 1.0.0
+requirements = python3,kivy,requests,websocket-client,pyopenssl,ssl
+orientation = portrait
+fullscreen = 0
+
+[buildozer]
+log_level = 2
+
+[android]
+api = 33
+minapi = 21
+ndk = 25b
+sdk = 34
+android.permissions = INTERNET,ACCESS_NETWORK_STATE
+android.debug = True
+EOF
     
-    - name: Create compatibility links
-      run: |
-        # Создаем структуру, которую ожидает buildozer
-        mkdir -p $ANDROID_HOME/tools/bin
-        
-        # Создаем символические ссылки для совместимости
-        ln -sf /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-        ln -sf /home/runner/.buildozer/android/platform/android-sdk/platform-tools/adb /home/runner/.buildozer/android/platform/android-sdk/tools/bin/adb
-        
-        echo "Compatibility links created"
-    
-    - name: Upgrade pip
-      run: pip install --upgrade pip
-    
-    - name: Install Cython and buildozer
-      run: |
-        pip install Cython
-        pip install buildozer
-    
-    - name: Create buildozer.spec
-      run: |
-        echo "[app]" > buildozer.spec
-        echo "title = R4Mesg" >> buildozer.spec
-        echo "package.name = r4mesg" >> buildozer.spec
-        echo "package.domain = com.r4mesg.app" >> buildozer.spec
-        echo "source.dir = ." >> buildozer.spec
-        echo "source.include_exts = py,png,jpg,kv,txt" >> buildozer.spec
-        echo "version = 1.0.0" >> buildozer.spec
-        echo "requirements = python3,kivy,requests,websocket-client,pyopenssl,ssl" >> buildozer.spec
-        echo "orientation = portrait" >> buildozer.spec
-        echo "fullscreen = 0" >> buildozer.spec
-        echo "" >> buildozer.spec
-        echo "[buildozer]" >> buildozer.spec
-        echo "log_level = 2" >> buildozer.spec
-        echo "" >> buildozer.spec
-        echo "[android]" >> buildozer.spec
-        echo "api = 33" >> buildozer.spec
-        echo "minapi = 21" >> buildozer.spec
-        echo "ndk = 25b" >> buildozer.spec
-        echo "sdk = 34" >> buildozer.spec
-        echo "android.accept_sdk_license = True" >> buildozer.spec
-        echo "android.permissions = INTERNET,ACCESS_NETWORK_STATE" >> buildozer.spec
-        echo "android.debug = True" >> buildozer.spec
-        # Явно указываем пути
-        echo "android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk" >> buildozer.spec
-        echo "android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b" >> buildozer.spec
-        echo "android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4" >> buildozer.spec
-    
-    - name: Create assets folder
+    - name: Create dummy assets
       run: |
         mkdir -p assets
         touch assets/splash.png
@@ -134,14 +59,7 @@ jobs:
     
     - name: Build APK
       run: |
-        # Устанавливаем переменные окружения
-        export ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-        
-        # Проверяем что adb доступен
-        which adb || echo "adb not found"
-        
-        # Запускаем сборку
+        # Пусть buildozer сам скачает всё необходимое
         buildozer android debug
     
     - name: Upload APK
@@ -149,3 +67,4 @@ jobs:
       with:
         name: R4Mesg-APK
         path: bin/*.apk
+        if-no-files-found: warn
