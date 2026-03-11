@@ -22,8 +22,23 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Install system dependencies
-      run: sudo apt-get update && sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev openjdk-17-jdk gradle
+    - name: Install system dependencies (including Java 8)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev gradle
+        # Устанавливаем Java 8
+        sudo apt-get install -y openjdk-8-jdk
+        # Устанавливаем Java 17 тоже (для других компонентов)
+        sudo apt-get install -y openjdk-17-jdk
+    
+    - name: Set Java 8 for SDK tools
+      run: |
+        # Сохраняем текущую Java версию
+        echo "JAVA_HOME_17=$JAVA_HOME" >> $GITHUB_ENV
+        # Временно переключаем на Java 8
+        sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
+        echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+        java -version
     
     - name: Download and setup Android SDK (legacy structure)
       run: |
@@ -47,6 +62,13 @@ jobs:
         yes | $ANDROID_HOME/tools/bin/sdkmanager "platform-tools"
         yes | $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-33"
         yes | $ANDROID_HOME/tools/bin/sdkmanager "build-tools;30.0.3"
+    
+    - name: Switch back to Java 17
+      run: |
+        # Возвращаем Java 17 для остальных шагов
+        sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+        java -version
     
     - name: Upgrade pip
       run: pip install --upgrade pip
