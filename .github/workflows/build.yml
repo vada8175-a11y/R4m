@@ -67,31 +67,23 @@ jobs:
 title = R4Mesg
 package.name = r4mesg
 package.domain = com.r4mesg.app
-
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,txt
-
 version = 1.0.0
 version.regex = __version__ = ['"](.*)['"]
 version.filename = %(source.dir)s/main.py
-
 requirements = python3,kivy==2.3.0,requests==2.31.0,websocket-client==1.8.0,pyopenssl==24.2.1,ssl,certifi,urllib3,charset-normalizer,idna
-
 presplash.filename = %(source.dir)s/assets/splash.png
 icon.filename = %(source.dir)s/assets/icon.png
-
 orientation = portrait
 osx.python_version = 3
 osx.kivy_version = 2.3.0
 fullscreen = 0
-
 [buildozer]
 log_level = 2
 warn_on_root = 1
-
 [requirements]
 android.archs = arm64-v8a
-
 [android]
 api = 33
 minapi = 21
@@ -129,7 +121,7 @@ EOF
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: R4Mesg-APK-$(date +%Y%m%d)
+        name: R4Mesg-APK
         path: bin/*.apk
         if-no-files-found: error
     
