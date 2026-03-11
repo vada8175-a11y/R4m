@@ -27,29 +27,27 @@ jobs:
     
     - name: Create minimal buildozer.spec
       run: |
-        cat > buildozer.spec << 'EOF'
-[app]
-title = R4Mesg
-package.name = r4mesg
-package.domain = com.r4mesg.app
-source.dir = .
-source.include_exts = py,png,jpg,kv,txt
-version = 1.0.0
-requirements = python3,kivy,requests,websocket-client,pyopenssl,ssl
-orientation = portrait
-fullscreen = 0
-
-[buildozer]
-log_level = 2
-
-[android]
-api = 33
-minapi = 21
-ndk = 25b
-sdk = 34
-android.permissions = INTERNET,ACCESS_NETWORK_STATE
-android.debug = True
-EOF
+        echo "[app]" > buildozer.spec
+        echo "title = R4Mesg" >> buildozer.spec
+        echo "package.name = r4mesg" >> buildozer.spec
+        echo "package.domain = com.r4mesg.app" >> buildozer.spec
+        echo "source.dir = ." >> buildozer.spec
+        echo "source.include_exts = py,png,jpg,kv,txt" >> buildozer.spec
+        echo "version = 1.0.0" >> buildozer.spec
+        echo "requirements = python3,kivy,requests,websocket-client,pyopenssl,ssl" >> buildozer.spec
+        echo "orientation = portrait" >> buildozer.spec
+        echo "fullscreen = 0" >> buildozer.spec
+        echo "" >> buildozer.spec
+        echo "[buildozer]" >> buildozer.spec
+        echo "log_level = 2" >> buildozer.spec
+        echo "" >> buildozer.spec
+        echo "[android]" >> buildozer.spec
+        echo "api = 33" >> buildozer.spec
+        echo "minapi = 21" >> buildozer.spec
+        echo "ndk = 25b" >> buildozer.spec
+        echo "sdk = 34" >> buildozer.spec
+        echo "android.permissions = INTERNET,ACCESS_NETWORK_STATE" >> buildozer.spec
+        echo "android.debug = True" >> buildozer.spec
     
     - name: Create dummy assets
       run: |
@@ -58,9 +56,7 @@ EOF
         touch assets/icon.png
     
     - name: Build APK
-      run: |
-        # Пусть buildozer сам скачает всё необходимое
-        buildozer android debug
+      run: buildozer android debug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
