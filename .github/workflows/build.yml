@@ -7,7 +7,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
 
 jobs:
   build:
@@ -26,46 +25,69 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git wget unzip python3-pip python3-dev libffi-dev libssl-dev autoconf automake cmake libtool pkg-config ninja-build ccache zlib1g-dev gradle
-        # Устанавливаем Java 8
-        sudo apt-get install -y openjdk-8-jdk
-        # Устанавливаем Java 17
-        sudo apt-get install -y openjdk-17-jdk
     
-    - name: Download and setup Android SDK with Java 8
+    - name: Cache Android SDK
+      id: cache-android-sdk
+      uses: actions/cache@v4
+      with:
+        path: /home/runner/.buildozer/android/platform
+        key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-android-sdk-
+    
+    - name: Setup Android SDK (if not cached)
+      if: steps.cache-android-sdk.outputs.cache-hit != 'true'
       run: |
-        # Сохраняем текущий JAVA_HOME
-        ORIGINAL_JAVA_HOME=$JAVA_HOME
-        echo "ORIGINAL_JAVA_HOME=$ORIGINAL_JAVA_HOME" >> $GITHUB_ENV
+        # Создаем структуру для SDK
+        mkdir -p /home/runner/.buildozer/android/platform/android-sdk
         
-        # Временно используем Java 8 напрямую
-        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-        export PATH=$JAVA_HOME/bin:$PATH
-        echo "Using Java 8:"
-        java -version
+        # Скачиваем готовый SDK с platform-tools (чтобы избежать Java проблем)
+        cd /home/runner/.buildozer/android/platform
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        mkdir -p android-sdk/cmdline-tools
+        mv cmdline-tools android-sdk/cmdline-tools/latest
+        rm commandlinetools-linux-11076708_latest.zip
         
+        # Скачиваем готовые platform-tools
+        cd android-sdk
+        wget -q https://dl.google.com/android/repository/platform-tools-latest-linux.zip
+        unzip -q platform-tools-latest-linux.zip
+        rm platform-tools-latest-linux.zip
+        
+        # Скачиваем готовые build-tools
+        mkdir -p build-tools
+        cd build-tools
+        wget -q https://dl.google.com/android/repository/build-tools_r30.0.3-linux.zip
+        unzip -q build-tools_r30.0.3-linux.zip -d 30.0.3
+        rm build-tools_r30.0.3-linux.zip
+        
+        # Скачиваем platform
+        cd /home/runner/.buildozer/android/platform/android-sdk
+        mkdir -p platforms
+        cd platforms
+        wget -q https://dl.google.com/android/repository/platform-33_r03.zip
+        unzip -q platform-33_r03.zip -d android-33
+        rm platform-33_r03.zip
+        
+        # Скачиваем NDK
+        cd /home/runner/.buildozer/android/platform
+        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+        unzip -q android-ndk-r25b-linux.zip
+        rm android-ndk-r25b-linux.zip
+        
+        echo "Android SDK setup complete"
+    
+    - name: Create compatibility links
+      run: |
         # Создаем структуру, которую ожидает buildozer
         mkdir -p $ANDROID_HOME/tools/bin
         
-        # Скачиваем старую версию SDK tools
-        wget -q https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-        unzip -q sdk-tools-linux-4333796.zip -d $ANDROID_HOME/
-        rm sdk-tools-linux-4333796.zip
+        # Создаем символические ссылки для совместимости
+        ln -sf /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        ln -sf /home/runner/.buildozer/android/platform/android-sdk/platform-tools/adb /home/runner/.buildozer/android/platform/android-sdk/tools/bin/adb
         
-        # Принимаем лицензии
-        yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
-        
-        # Устанавливаем компоненты
-        yes | $ANDROID_HOME/tools/bin/sdkmanager "platform-tools"
-        yes | $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-33"
-        yes | $ANDROID_HOME/tools/bin/sdkmanager "build-tools;30.0.3"
-    
-    - name: Switch back to Java 17
-      run: |
-        # Возвращаем Java 17
-        export JAVA_HOME=$ORIGINAL_JAVA_HOME
-        export PATH=$JAVA_HOME/bin:$PATH
-        echo "Switched back to:"
-        java -version
+        echo "Compatibility links created"
     
     - name: Upgrade pip
       run: pip install --upgrade pip
@@ -99,6 +121,10 @@ jobs:
         echo "android.accept_sdk_license = True" >> buildozer.spec
         echo "android.permissions = INTERNET,ACCESS_NETWORK_STATE" >> buildozer.spec
         echo "android.debug = True" >> buildozer.spec
+        # Явно указываем пути
+        echo "android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk" >> buildozer.spec
+        echo "android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b" >> buildozer.spec
+        echo "android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4" >> buildozer.spec
     
     - name: Create assets folder
       run: |
@@ -107,7 +133,16 @@ jobs:
         touch assets/icon.png
     
     - name: Build APK
-      run: buildozer android debug
+      run: |
+        # Устанавливаем переменные окружения
+        export ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+        
+        # Проверяем что adb доступен
+        which adb || echo "adb not found"
+        
+        # Запускаем сборку
+        buildozer android debug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
